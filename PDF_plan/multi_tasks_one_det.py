@@ -11,6 +11,8 @@ def pdf_xrd_PE(det, *args, md=None, **kwargs):
 
     ## Measure PDF and XRD by moving det
 
+    _md = {}
+    _md.update(md or {})
     @bpp.stage_decorator([det])
     @bpp.run_decorator(md=_md)
     def trigger_at_TwoPositions():
