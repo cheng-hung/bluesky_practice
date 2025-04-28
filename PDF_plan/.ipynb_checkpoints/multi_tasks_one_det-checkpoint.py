@@ -65,22 +65,26 @@ def set_glbl(frame_acq_time, dk_window):
     # print(f"{glbl['shutter_control'] = }")
 
 
-def pdf_xrd_one_det(det, det_motor, acq_config, *args, md=None, **kwargs):
+def pdf_xrd_one_det(det, det_motor, acq_config, *args, md=None, switch_rest=3, **kwargs):
 
     ## Measure PDF and XRD by moving det
 
     def switch_acquisition_type(det_position, config_type, config_dir):
+        
         try:
             os.remove(config_dir + "xpdAcq_calib_info.poni")
         except Exception:
             pass      
+        
         poni_to_be_copied = os.path.join(config_dir, config_type, "xpdAcq_calib_info.poni")
         # shutil.copy(config_dir + f"/{config_type}/" + "xpdAcq_calib_info.poni" , config_dir)
         shutil.copy(poni_to_be_copied , config_dir)
+        
         try:
             os.remove(config_dir + "Mask.npy")
         except Excemption:
             pass
+        
         mask_to_be_copied = os.path.join(config_dir, config_type, "Mask.npy" )
         # shutil.copy(config_dir + f"/{config_type}/" + "Mask.npy" , config_dir)
         shutil.copy(mask_to_be_copied , config_dir)
@@ -95,7 +99,8 @@ def pdf_xrd_one_det(det, det_motor, acq_config, *args, md=None, **kwargs):
     @bpp.run_decorator(md=_md)
     def trigger_at_TwoPositions():
 
-        ## Moving to position of PDF
+        ## Switch to measurment of PDF
+        set_glbl(acq_config['frame_acq_times'][0], acq_config['dark_win'][0])
         yield from switch_acquisition_type(acq_config['det_position'][0], 'PDF', acq_config['config_dir'])
         yield from configure_area_det2(det, acq_config['exposure_sec'][0])
         yield from bps.sleep(2)
@@ -106,9 +111,11 @@ def pdf_xrd_one_det(det, det_motor, acq_config, *args, md=None, **kwargs):
         # ret.update(reading)
         yield from bps.save()
 
+        ## rest before switch to XRD
+        yield from bps.sleep(switch_rest)
         
-        ## Moving to position of XRD
-        yield from bps.sleep(30)
+        ## Switch to measurment of XRD
+        set_glbl(acq_config['frame_acq_times'][1], acq_config['dark_win'][1])
         yield from switch_acquisition_type(acq_config['det_position'][1], 'XRD', acq_config['config_dir'])
         yield from configure_area_det2(det, acq_config['exposure_sec'][1])
         yield from bps.sleep(2)
