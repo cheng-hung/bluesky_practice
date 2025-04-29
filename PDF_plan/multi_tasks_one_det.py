@@ -3,6 +3,7 @@ import matplotlib.plot as plt
 import pandas as pd
 import os
 import glob
+import shutil 
 
 from bluesky.utils import ts_msg_hook
 import bluesky.preprocessors as bpp
