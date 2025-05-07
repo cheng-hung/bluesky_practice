@@ -155,7 +155,7 @@ def pdf_RE3(dets, exposure):
     
     
     
-def pdf_RE4(dets, exposure, det=pe1c, det_x_pos=None, det_y_pos=None, det_z_pos=None):
+def pdf_RE4(dets, exposure, det_name='pe1c', det_x_pos=None, det_y_pos=None, det_z_pos=None):
     
     """
     Take one reading from area detector with given exposure time
@@ -180,12 +180,19 @@ def pdf_RE4(dets, exposure, det=pe1c, det_x_pos=None, det_y_pos=None, det_z_pos=
     """
     
     # change detector in configuration to the given one
-    if xpd_configuration["area_det"].name == det.name:
+    if xpd_configuration["area_det"].name == det_name:
         pass
     else:
-        xpd_configuration["area_det"] = det
+        if det_name == 'pe1c':
+            xpd_configuration["area_det"] = pe1c
+        elif det_name == 'pe2c':
+            xpd_configuration["area_det"] = pe2c
+        elif det_name == 'pilatus1':
+            xpd_configuration["area_det"] = pilatus1
+            
+    area_det = xpd_configuration["area_det"]       
     
-    # TODO: check _configure_area_det for pilatus
+    # TODO: check if _configure_area_det for pilatus
     # setting up area_detector
     (num_frame, acq_time, computed_exposure) = yield from _configure_area_det(exposure)
     
@@ -201,29 +208,29 @@ def pdf_RE4(dets, exposure, det=pe1c, det_x_pos=None, det_y_pos=None, det_z_pos=
             "sp_type": "bps.trigger",
             "sp_uid": str(uuid.uuid4()),
             "sp_plan_name": "pdf_RE4",
-            "sp_detector": det.name, 
+            "sp_detector": area_det.name, 
         },
     )
     
-    @bpp.stage_decorator([det])
+    @bpp.stage_decorator([area_det])
     @bpp.run_decorator(md=_md)
-    def pdf_RE_inner(det):
+    def pdf_RE_inner(area_det):
         # _md = {'detectors':[det.name]}
         # _md.update(md or {})
         
         def trigger_det(stream_name):
             ret = {}
-            yield from bps.trigger(det, wait=True)
+            yield from bps.trigger(area_det, wait=True)
             yield from bps.create(name=stream_name)
-            reading = (yield from bps.read(det))
+            reading = (yield from bps.read(area_det))
             # print(f"reading = {reading}")
             ret.update(reading)
             yield from bps.save()
 
-        if det.name == 'pe1c':
-            yield from periodic_dark(trigger_det(f"PDF_{det.name}"))
+        if area_det.name == 'pe1c':
+            yield from periodic_dark(trigger_det(f"PDF_{area_det.name}"))
                 
-        elif det.name == 'pilatus1':
+        elif area_det.name == 'pilatus1':
             if det_x_pos==None and det_y_pos==None:
                 det_x_pos = [40.644, 31.356, 36]
                 det_y_pos = [-3.356, -12.644, -8]
@@ -234,8 +241,8 @@ def pdf_RE4(dets, exposure, det=pe1c, det_x_pos=None, det_y_pos=None, det_z_pos=
                 # Grid_X.move(det_x[i])
                 # Grid_Y.move(det_y[i])
                 yield from bps.mv(Grid_X, det_x_pos[i], Grid_Y, det_y_pos[i])
-                yield from periodic_dark(trigger_det(f"PDF_{det.name}_{i}"))
+                yield from periodic_dark(trigger_det(f"PDF_{area_det.name}_{i}"))
                     
                 
-    yield from pdf_RE_inner(det)
+    yield from pdf_RE_inner(area_det)
     
