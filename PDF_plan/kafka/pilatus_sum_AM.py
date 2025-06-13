@@ -156,13 +156,13 @@ def transform_bkg(
     if not test:
         plt.show()
     
-    return dct
+    return dct, pdfconfig
 
 def get_gr(iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     pdfconfig = PDFConfig()
     pdfconfig.readConfig(cfg_fn)
     pdfconfig.backgroundfiles = bkg_fn
-    sqfqgr_path = transform_bkg(
+    sqfqgr_path, pdfconfig = transform_bkg(
                 pdfconfig, iq_data, 
                 output_dir = output_dir, 
                 plot_setting={'marker':'.','color':'green'}, test=True, 
@@ -170,6 +170,6 @@ def get_gr(iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     
     print(f'\n*** {os.path.basename(sqfqgr_path["gr"])} saved!! ***\n')
 
-    return sqfqgr_path['gr']
+    return sqfqgr_path, pdfconfig
 
 

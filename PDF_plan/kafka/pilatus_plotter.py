@@ -13,15 +13,18 @@ class plot_pilatus(open_figures):
     
     def __init__(self, sample_name, 
                  figure_labels = ['stithed_tiff', 
-                                  'I(Q)', 'g(r)']):
+                                  'I(Q)', 
+                                  'S(Q)', 
+                                  'f(Q)', 
+                                  'g(r)', ]):
         self.fig = figure_labels
         # self.uid = metadata_dic['uid']
         self.sample_name = sample_name
         # self.fontsize = 14
-        self.labelsize = 10
+        self.labelsize = 12
         self.legend_prop = {'weight':'regular', 'size':12}
-        self.title_prop = {'weight':'bold', 'size':12}
-        self.xylabel_prop = {'weight':'bold', 'size':14}
+        self.title_prop = {'weight':'regular', 'size':12}
+        self.xylabel_prop = {'weight':'regular', 'size':14}
         # self.num = None
         # self.date, self.time = _readable_time(metadata_dic['time'])
         super().__init__(figure_labels)
@@ -36,7 +39,11 @@ class plot_pilatus(open_figures):
 
         plt.clf()
         ax = f.gca()
-        vmax=np.percentile(full_imsum, 75)
+        vmax = np.percentile(full_imsum, 95)
+
+        if vmax==np.nan:
+            vmax = 10
+
         im = ax.imshow(full_imsum, label=self.sample_name, 
                        vmin=0, vmax=vmax)
         f.colorbar(im)
@@ -54,7 +61,7 @@ class plot_pilatus(open_figures):
 
         
         
-    def plot_iq(self, iq_fn, title=None):
+    def plot_iq(self, iq_fn, title=None,):
         
         try: 
             f = plt.figure(self.fig[1])
@@ -67,7 +74,7 @@ class plot_pilatus(open_figures):
         ax = f.gca()
         ax.plot(iq_df['q'], iq_df['I(q)'], label=self.sample_name)
 
-        if label != None:
+        if title != None:
             ax.set_title(title, prop=self.title_prop)
         else:
             pass
@@ -81,32 +88,103 @@ class plot_pilatus(open_figures):
         
 
 
-    def plot_gr(self, gr_path, title=None):
+    # def plot_gr(self, gr_path, title=None):
         
+    #     try: 
+    #         f = plt.figure(self.fig[2])
+    #     except (IndexError): 
+    #         f = plt.figure(self.fig[-1])    # def plot_gr(self, gr_path, title=None):
+        
+    #     try: 
+    #         f = plt.figure(self.fig[2])
+    #     except (IndexError): 
+    #         f = plt.figure(self.fig[-1])
+        
+    #     gr_df = pd.read_csv(gr_path, names=['r', 'g(r)'], sep=' ', skiprows=26)
+
+
+    #     plt.clf()
+    #     ax = f.gca()
+    #     ax.plot(gr_df['r'], gr_df['g(r)'], label=self.sample_name)
+
+    #     if title != None:
+    #         ax.set_title(title, prop=self.title_prop)
+    #     else:
+    #         pass
+
+    #     ax.set_xlabel('r (A)', fontdict=self.xylabel_prop)
+    #     ax.set_ylabel('g(r)', fontdict=self.xylabel_prop)
+    #     ax.legend(prop=self.legend_prop)
+
+    #     f.canvas.manager.show()
+    #     f.canvas.flush_events()
+        
+    #     gr_df = pd.read_csv(gr_path, names=['r', 'g(r)'], sep=' ', skiprows=26)
+
+
+    #     plt.clf()
+    #     ax = f.gca()
+    #     ax.plot(gr_df['r'], gr_df['g(r)'], label=self.sample_name)
+
+    #     if title != None:
+    #         ax.set_title(title, prop=self.title_prop)
+    #     else:
+    #         pass
+
+    #     ax.set_xlabel('r (A)', fontdict=self.xylabel_prop)
+    #     ax.set_ylabel('g(r)', fontdict=self.xylabel_prop)
+    #     ax.legend(prop=self.legend_prop)
+
+    #     f.canvas.manager.show()
+    #     f.canvas.flush_events()
+        
+        
+
+
+    def plot_sqfqgr(self, sqfqgr_path, pdfconfig, bkg_fn, title=None):
+
         try: 
-            f = plt.figure(self.fig[2])
+            f = plt.figure(self.fig[1])
         except (IndexError): 
             f = plt.figure(self.fig[-1])
-        
-        gr_df = pd.read_csv(gr_path, names=['r', 'g(r)'], sep=' ', skiprows=26)
 
+        bkg_df = pd.read_csv(bkg_fn, names=['x', 'y'], sep=' ', skiprows=1)
 
-        plt.clf()
+        scale = pdfconfig.bgscales[0]
         ax = f.gca()
-        ax.plot(gr_df['r'], gr_df['g(r)'], label=self.sample_name)
-
-        if label != None:
-            ax.set_title(title, prop=self.title_prop)
-        else:
-            pass
-
-        ax.set_xlabel('r (A)', fontdict=self.xylabel_prop)
-        ax.set_ylabel('g(r)', fontdict=self.xylabel_prop)
+        ax.plot(bkg_df['x'], bkg_df['y']*scale, label='background', marker='.',color='green')
         ax.legend(prop=self.legend_prop)
-
-        f.canvas.manager.show()
-        f.canvas.flush_events()
         
+        keys = ['sq', 'fq', 'gr']
+        xlabel = ['q (A-1)', 'q (A-1)', 'r (A)']
+        ylabel = ['S(q)', 'f(q)', 'g(r)']
+
+        for i in range(len(sqfqgr_path)):
+
+            try: 
+                f = plt.figure(self.fig[i+2])
+            except (IndexError): 
+                f = plt.figure(self.fig[-1])
+        
+
+            df = pd.read_csv(sqfqgr_path[keys[i]], names=['x', 'y'], sep=' ', skiprows=27)
+
+
+            plt.clf()
+            ax = f.gca()
+            ax.plot(df['x'], df['y'], label=self.sample_name)
+
+            if title != None:
+                ax.set_title(title, prop=self.title_prop)
+            else:
+                pass
+
+            ax.set_xlabel(xlabel[i], fontdict=self.xylabel_prop)
+            ax.set_ylabel(ylabel[i], fontdict=self.xylabel_prop)
+            ax.legend(prop=self.legend_prop)
+
+            f.canvas.manager.show()
+            f.canvas.flush_events()
         
 
         
