@@ -15,6 +15,7 @@ tiled_client = from_profile('pdf')
 import importlib
 ## import stitching modules maade by AM
 pilasum = importlib.import_module("pilatus_sum_AM")
+pilaplot = importlib.import_module("pilatus_plotter")
 
 "--------------------------USER INPUTS------------------------------"
 ## Defined top layer folders
@@ -143,6 +144,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                 f"\nStart to stitch pilatus1 data uid = {uid}\n"
             )
             
+            plotter = pilaplot.plot_pilatus(sample_name)
             ## Sum three images at three positions
             full_imsum, sum_dir, saved_fn_prefix = pilasum.save_image_sum_T(
                                                 uid, stream_name, sample_name, 
@@ -151,6 +153,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                                                 masks_pos_flist=masks_pos_flist, 
                                                 tiff_base_path=tiff_base_path, 
                                                 )
+            plotter.plot_tiff(full_imsum)
 
             ## pyFai integration: 2D to 1D
             iq_data, iq_fn = pilasum.pct_integration(full_imsum, saved_fn_prefix, 
@@ -161,11 +164,13 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                                               mask_fn=stitched_mask_fn, 
                                               directory=sum_dir, 
                                               )
+            plotter.plot_iq(iq_fn)
 
             ## Data reduction: I(Q) to G(r)
             if do_reduction:
                 gr_path = pilasum.get_gr(iq_fn, cfg_fn, bkg_fn, 
                                          sum_dir, saved_fn_prefix)
+                plotter.plot_gr(gr_path)
 
 
             print('\n########### Events printing division ############\n')
