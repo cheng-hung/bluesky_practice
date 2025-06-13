@@ -50,7 +50,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02):
         if (name == 'start'):
             print(
                 f"\n\n{datetime.datetime.now().isoformat()} documents {name}\n"
-                # f"document keys: {list(message.keys())}"
+                f"document keys: {list(message.keys())}"
                 f"\n{message['uid'] = }\n")
             try:
                 print(f"\n{message['topic'] = }\n")
@@ -59,7 +59,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02):
                 
         elif name == 'event':
             print(
-                # f"\n{datetime.datetime.now().isoformat()} documents {name}\n"
+                f"\n{datetime.datetime.now().isoformat()} documents {name}\n"
                 f"\ndocument keys: {list(message.keys())}\n"
                 )
             try:
@@ -70,10 +70,14 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02):
         elif name == 'stop':
         #     # print('Kafka test good!!')
             print(
-                # f"\n{datetime.datetime.now().isoformat()} documents {name}\n"
+                f"\n{datetime.datetime.now().isoformat()} documents {name}\n"
                 f"\ndocument keys: {list(message.keys())}\n"
                 f"\ncontents: {pprint.pformat(message['num_events'])}\n"
+                f"\n{message['uid'] = }\n"
                 )
+            
+            stream_name = list(message['num_events'].keys())
+            print(f'\n{stream_name = }\n')
             try:
                 print(f"\n{message['topic'] = }\n")
             except KeyError:

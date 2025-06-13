@@ -155,7 +155,7 @@ def pdf_RE3(dets, exposure):
     
     
     
-def pdf_RE4(dets, exposure, det_name='pe1c', det_x_pos=None, det_y_pos=None, det_z_pos=None):
+def pdf_RE4(dets, exposure, areaDet_name='pe1c', metadata={}, det_x_pos=None, det_y_pos=None, det_z_pos=None):
     
     """
     Take one reading from area detector with given exposure time
@@ -179,25 +179,28 @@ def pdf_RE4(dets, exposure, det_name='pe1c', det_x_pos=None, det_y_pos=None, det
     to see which device is being linked
     """
     
+    pe1c, = dets
+
     # change detector in configuration to the given one
-    if xpd_configuration["area_det"].name == det_name:
+    if xpd_configuration["area_det"].name == areaDet_name:
         pass
     else:
-        if det_name == 'pe1c':
+        if areaDet_name == 'pe1c':
             xpd_configuration["area_det"] = pe1c
-        elif det_name == 'pe2c':
+        elif areaDet_name == 'pe2c':
             xpd_configuration["area_det"] = pe2c
-        elif det_name == 'pilatus1':
-            xpd_configuration["area_det"] = pilatus1
+        elif areaDet_name == 'pilatus1':
+            areaDet_name["area_det"] = pilatus1
             
     area_det = xpd_configuration["area_det"]       
     
+
     # TODO: check if _configure_area_det for pilatus
     # setting up area_detector
     (num_frame, acq_time, computed_exposure) = yield from _configure_area_det(exposure)
     
     # update md
-    md = {}
+    md = metadata
     _md = ChainMap(
         md,
         {
