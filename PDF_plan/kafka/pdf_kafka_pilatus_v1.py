@@ -42,7 +42,7 @@ ul=99
 ## pdfgetx3 config file (.cfg) and bkg file (.chi) should saved in '/config_base/pdfgetx'
 do_reduction = True
 cfg_name = 'pdfgetx3.cfg'
-bkg_name = 'background_20250613-135842_8adb67_Temperature_299.dat'
+bkg_name = 'empty_kapton_6K_PDF_20250613-205751_a993d3_Temperature_6_L1_U99_percentile_masked_q_A^-1.dat'
 cfg_fn = os.path.join(config_base_path, 'pdfgetx', cfg_name)
 bkg_fn = os.path.join(config_base_path, 'pdfgetx', bkg_name)
 
@@ -168,7 +168,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
 
             ## Data reduction: I(Q) to G(r)
             if do_reduction:
-                sqfqgr_path, pdfconfig = pilasum.get_gr(iq_fn, cfg_fn, bkg_fn, 
+                sqfqgr_path, pdfconfig = pilasum.get_gr(uid, iq_fn, cfg_fn, bkg_fn, 
                                          sum_dir, saved_fn_prefix)
                 plotter.plot_sqfqgr(sqfqgr_path, pdfconfig, bkg_fn)
 

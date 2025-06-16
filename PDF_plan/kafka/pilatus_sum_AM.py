@@ -158,9 +158,28 @@ def transform_bkg(
     
     return dct, pdfconfig
 
-def get_gr(iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
+
+
+
+def composition_maker(scan_comp):
+    com = ''
+    for i in scan_comp.keys():
+        com += f'{i} {scan_comp[i] }'
+
+    return com
+
+
+
+
+def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
+    run = tiled_client[uid]
+    scan_com = run.start['sample_composition']
+
     pdfconfig = PDFConfig()
     pdfconfig.readConfig(cfg_fn)
+
+    pdfconfig.composition = composition_maker(scan_com)
+
     pdfconfig.backgroundfiles = bkg_fn
     sqfqgr_path, pdfconfig = transform_bkg(
                 pdfconfig, iq_data, 
