@@ -160,7 +160,7 @@ def transform_bkg(
 
 
 
-
+## Trun 'sample_composition' into string
 def composition_maker(scan_comp):
     com = ''
     for i in scan_comp.keys():
@@ -174,6 +174,7 @@ def composition_maker(scan_comp):
 def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     run = tiled_client[uid]
     scan_com = run.start['sample_composition']
+    composition_string = run.start['composition_string']
 
     pdfconfig = PDFConfig()
     pdfconfig.readConfig(cfg_fn)
