@@ -39,13 +39,18 @@ class plot_pilatus(open_figures):
 
         plt.clf()
         ax = f.gca()
-        #vmax = np.percentile(full_imsum, 95)
-        vmax = 10000
-        #if vmax==np.nan:
-        #    vmax = 10
+
+        vmax = np.nanpercentile(full_imsum, 98)
+        # vmax = 10000
+        if vmax==np.nan:
+           vmax = 10000
+
+        vmin = np.nanpercentile(full_imsum, 10)
+        if vmin==np.nan:
+           vmin = 0
 
         im = ax.imshow(full_imsum, label=self.sample_name, 
-                       vmin=0, vmax=vmax)
+                       vmin=vmin, vmax=vmax)
         f.colorbar(im)
 
         if title != None:

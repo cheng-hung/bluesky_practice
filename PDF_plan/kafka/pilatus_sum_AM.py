@@ -2,15 +2,15 @@ import pyFAI
 import pyFAI.calibrant
 import pyFAI.detectors
 import os, glob, re
-from ipywidgets import interact, interactive, fixed, interact_manual, HBox, VBox
-import ipywidgets as widgets
+# from ipywidgets import interact, interactive, fixed, interact_manual, HBox, VBox
+# import ipywidgets as widgets
 from tifffile import imread, imshow, imsave
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
-import matplotlib.colors as colors
-from matplotlib import gridspec
-from matplotlib.widgets import Slider, Button
+# import matplotlib.colors as colors
+# from matplotlib import gridspec
+# from matplotlib.widgets import Slider, Button
 import yaml, tifffile
 # %matplotlib widget
 
@@ -159,8 +159,7 @@ def transform_bkg(
     return dct, pdfconfig
 
 
-
-## Trun 'sample_composition' into string
+## Add by CHLin on 2025/06/13 to turn sample_composition from dict to string
 def composition_maker(scan_comp):
     com = ''
     for i in scan_comp.keys():
@@ -170,16 +169,25 @@ def composition_maker(scan_comp):
 
 
 
-
 def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     run = tiled_client[uid]
-    scan_com = run.start['sample_composition']
-    composition_string = run.start['composition_string']
+    
+    ## run.start['sample_composition'] is a dict but pdfconfig takes a string for composition 
+    # scan_com = run.start['sample_composition']
 
     pdfconfig = PDFConfig()
     pdfconfig.readConfig(cfg_fn)
 
-    pdfconfig.composition = composition_maker(scan_com)
+    # pdfconfig.composition = composition_maker(scan_com)
+
+    ## There is also a string for composition in run.start. Updated by CHLin on 2025/06/16
+    try:
+        pdfconfig.composition = run.start['composition_string']
+        print(f'\n\nFound composition as {run.start['composition_string'] = }')
+
+    except (KeyError):
+        pdfconfig.composition = 'Ni1.0'
+        print(f'\n\nCan not find sample composition in run.start. Use "Ni1.0" instead.')
 
     pdfconfig.backgroundfiles = bkg_fn
     sqfqgr_path, pdfconfig = transform_bkg(
