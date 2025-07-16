@@ -17,6 +17,7 @@ import yaml, tifffile
 from tiled.client import from_profile
 tiled_client = from_profile('pdf')
 
+import importlib
 auto_bkg = importlib.import_module("auto_bkg").auto_bkg
 
 
@@ -193,12 +194,14 @@ def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix, is_autobkg=Tr
 
     
     ## Use auto_bkg to repalce the bkg in pdfconfig
-
-    a_bkg = auto_bkg(iq_data, bkg_fn)
-    a_bkg.pdload_data(skiprows=1, sep=' ', names=['Q', 'I'])
-    a_bkg.pdload_bkg(skiprows=1, sep=' ', names=['Q', 'I'])
-    res = aa.min_integral()
-    
+    if is_autobkg:
+        a_bkg = auto_bkg(iq_data, bkg_fn)
+        a_bkg.pdload_data(skiprows=1, sep=' ', names=['Q', 'I'])
+        a_bkg.pdload_bkg(skiprows=1, sep=' ', names=['Q', 'I'])
+        res = a_bkg.min_integral()
+        pdfconfig.bgscales[0] = res.x
+        print(f'\nUpdate {pdfconfig.bgscales[0] = } by auto_bkg\n')
+        # a_bkg.plot_sub()
     
     pdfconfig.backgroundfiles = bkg_fn
     sqfqgr_path, pdfconfig = transform_bkg(

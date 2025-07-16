@@ -43,7 +43,7 @@ ul=99
 ## pdfgetx3 config file (.cfg) and bkg file (.chi) should saved in '/config_base/pdfgetx'
 do_reduction = True
 cfg_name = 'pdfgetx3.cfg'
-bkg_name = 'empty_quartz_pilatus_20250715-213642_0b0a35_Temperature_None_K_sum_L1_U99_percentile_masked_q_A^-1.dat'
+bkg_name = 'Kapton_tube_1mm_PDF_20250716-165908_1b69be_Temperature_None_K_sum_L1_U99_percentile_masked_q_A^-1.dat'
 cfg_fn = os.path.join(config_base_path, 'pdfgetx', cfg_name)
 bkg_fn = os.path.join(config_base_path, 'pdfgetx', bkg_name)
 
@@ -62,6 +62,7 @@ plt.rcParams["figure.raise_window"] = False
 
 
 def print_kafka_messages(beamline_acronym_01, beamline_acronym_02, 
+                         config_base_path=config_base_path, 
                          tiff_base_path=tiff_base_path, 
                          masks_path=masks_path, 
                          masks_pos_flist=masks_pos_flist, 
