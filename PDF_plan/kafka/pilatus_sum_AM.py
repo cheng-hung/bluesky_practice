@@ -183,7 +183,7 @@ def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     ## There is also a string for composition in run.start. Updated by CHLin on 2025/06/16
     try:
         pdfconfig.composition = run.start['composition_string']
-        print(f'\n\nFound composition as {run.start['composition_string'] = }')
+        print(f'\n\nFound composition as {run.start["composition_string"] = }')
 
     except (KeyError):
         pdfconfig.composition = 'Ni1.0'

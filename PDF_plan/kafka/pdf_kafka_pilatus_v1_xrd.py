@@ -24,14 +24,14 @@ tiff_base_path = os.path.join(user_data, 'tiff_base')
 config_base_path = os.path.join(user_data, 'config_base')
 
 ## Variables to sum and stitch images
-masks_path = os.path.join(config_base_path,'pilatus_PDF_mask')
+masks_path = os.path.join(config_base_path,'pilatus_XRD_mask')
 masks_pos_flist = ['Mask_pos1_ext_BS.npy', 'Mask_pos2_ext_BS.npy', 'Mask_pos3_ext_BS.npy']
 osetx = 27
 osety = 27
 
 ## Varibles for pyFai integration
-poni_fn = os.path.join(config_base_path, 'merged_PDF', 'merged.poni')
-stitched_mask_fn = os.path.join(config_base_path, 'pilatus_PDF_mask', 'Mask_stitched.npy')
+poni_fn = os.path.join(config_base_path, 'merged_XRD', 'merged.poni')
+stitched_mask_fn = os.path.join(config_base_path, 'pilatus_XRD_mask', 'Mask_stitched.npy')
 binning = 5000
 polarization = 0.99
 UNIT = "q_A^-1"
