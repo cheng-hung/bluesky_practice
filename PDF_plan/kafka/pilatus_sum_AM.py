@@ -201,3 +201,20 @@ def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
     return sqfqgr_path, pdfconfig
 
 
+
+
+def is_pdf_xrd(uid, distance_limit=0.3):
+    ## unit of distance is meter
+
+    run = tiled_client[uid]
+    distance = run.start['calibration_md']['Distance']
+    acq_mode = ''
+
+    if distance < distance_limit:
+        acq_mode = 'PDF'
+
+    elif distance > distance_limit:
+        acq_mode = 'XRD'
+
+    return acq_mode
+
