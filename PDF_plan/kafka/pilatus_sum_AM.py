@@ -17,6 +17,8 @@ import yaml, tifffile
 from tiled.client import from_profile
 tiled_client = from_profile('pdf')
 
+auto_bkg = importlib.import_module("auto_bkg").auto_bkg
+
 
 def sum_everything(uid, stream_name, masks_path, masks_pos_flist, osetx = 27, osety = 27):
     """ Assuming im2 offset by -osetx, -osety, and im3 offset by +osetx, +osety """
@@ -169,7 +171,7 @@ def composition_maker(scan_comp):
 
 
 
-def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
+def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix, is_autobkg=True):
     run = tiled_client[uid]
     
     ## run.start['sample_composition'] is a dict but pdfconfig takes a string for composition 
@@ -189,6 +191,15 @@ def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
         pdfconfig.composition = 'Ni1.0'
         print(f'\n\nCan not find sample composition in run.start. Use "Ni1.0" instead.')
 
+    
+    ## Use auto_bkg to repalce the bkg in pdfconfig
+
+    a_bkg = auto_bkg(iq_data, bkg_fn)
+    a_bkg.pdload_data(skiprows=1, sep=' ', names=['Q', 'I'])
+    a_bkg.pdload_bkg(skiprows=1, sep=' ', names=['Q', 'I'])
+    res = aa.min_integral()
+    
+    
     pdfconfig.backgroundfiles = bkg_fn
     sqfqgr_path, pdfconfig = transform_bkg(
                 pdfconfig, iq_data, 

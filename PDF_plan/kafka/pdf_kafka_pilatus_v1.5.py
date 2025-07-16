@@ -17,6 +17,7 @@ import importlib
 pilasum = importlib.import_module("pilatus_sum_AM")
 pilaplot = importlib.import_module("pilatus_plotter")
 
+
 "--------------------------USER INPUTS------------------------------"
 ## Defined top layer folders
 user_data = '/nsls2/data3/pdf/pdfhack/legacy/processed/xpdacq_data/user_data'
