@@ -92,12 +92,11 @@ class auto_bkg():
         
         try:
             ax[0].plot(self.bkg_df.iloc[:,0], self.bkg_df.iloc[:,1]*self.bkg_opt, 'g.', label='scaled_bkg', )
+            ax[1].plot(self.data_df.iloc[:,0], self.data_sub(self.bkg_opt), label='data_sub')
         
         except TypeError:
             ax[0].plot(self.bkg_df.iloc[:,0], self.bkg_df.iloc[:,1]*self.guess_01(), 'r.', label='scaled_bkg', )
-        
-        
-        ax[1].plot(self.data_df.iloc[:,0], self.data_sub(self.bkg_opt), label='data_sub')
+            ax[1].plot(self.data_df.iloc[:,0], self.data_sub(self.guess_01()), label='data_sub')
 
         ax[0].legend()
         ax[1].legend()

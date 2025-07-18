@@ -45,7 +45,7 @@ def sum_everything(uid, stream_name, masks_path, masks_pos_flist, osetx = 27, os
 
     my_imsum[int(2*osetx):,int(2*osety):,2] = my_im3
     my_imsum[int(2*osetx):,int(2*osety):,2][use_mask_3==1] = np.nan
-    return np.nanmean(my_imsum,axis=2)
+    return np.nanmean(my_imsum,axis=2, dtype=np.float32)
 
 
 def save_image_sum_T(uid, stream_name, sample_name, osetx = 27, osety = 27, 
