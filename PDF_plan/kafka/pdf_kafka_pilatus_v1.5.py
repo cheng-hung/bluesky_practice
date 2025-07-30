@@ -29,6 +29,8 @@ masks_path = os.path.join(config_base_path,'pilatus_PDF_mask')
 masks_pos_flist = ['Mask_pos1_ext_BS.npy', 'Mask_pos2_ext_BS.npy', 'Mask_pos3_ext_BS.npy']
 osetx = 27
 osety = 27
+use_flatfiled = False
+flatfiled_fn = None
 
 ## Varibles for pyFai integration
 poni_fn = os.path.join(config_base_path, 'merged_PDF', 'merged.poni')
@@ -42,6 +44,7 @@ ul=99
 ## Variables for pdfgetx3
 ## pdfgetx3 config file (.cfg) and bkg file (.chi) should saved in '/config_base/pdfgetx'
 do_reduction = True
+is_autobkg = True
 cfg_name = 'pdfgetx3.cfg'
 bkg_name = 'Kapton_tube_1mm_PDF_20250716-165908_1b69be_Temperature_None_K_sum_L1_U99_percentile_masked_q_A^-1.dat'
 cfg_fn = os.path.join(config_base_path, 'pdfgetx', cfg_name)
@@ -74,6 +77,9 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                          UNIT=UNIT, ll=ll, ul=ul, 
                          do_reduction=do_reduction, 
                          cfg_fn=cfg_fn, bkg_fn=bkg_fn, 
+                         use_flatfiled = use_flatfiled, 
+                         flatfiled_fn = flatfiled_fn, 
+                         is_autobkg = is_autobkg, 
                          ):
     
     print(f"Listening to Kafka messages for {beamline_acronym_01}")
@@ -169,6 +175,8 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                                                 masks_path=masks_path, 
                                                 masks_pos_flist=masks_pos_flist, 
                                                 tiff_base_path=tiff_base_path, 
+                                                use_flatfiled=use_flatfiled, 
+                                                flatfiled_fn=flatfiled_fn, 
                                                 )
             plotter.plot_tiff(full_imsum)
 
@@ -186,7 +194,7 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
             ## Data reduction: I(Q) to G(r)
             if do_reduction:
                 sqfqgr_path, pdfconfig = pilasum.get_gr(uid, iq_fn, cfg_fn, bkg_fn, 
-                                         sum_dir, saved_fn_prefix)
+                                         sum_dir, saved_fn_prefix, is_autobkg=is_autobkg)
                 plotter.plot_sqfqgr(sqfqgr_path, pdfconfig, bkg_fn)
 
 

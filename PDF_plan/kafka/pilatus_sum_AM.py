@@ -21,13 +21,22 @@ import importlib
 auto_bkg = importlib.import_module("auto_bkg").auto_bkg
 
 
-def sum_everything(uid, stream_name, masks_path, masks_pos_flist, osetx = 27, osety = 27):
+def sum_everything(uid, stream_name, masks_path, masks_pos_flist, osetx = 27, osety = 27, 
+                   use_flatfiled = False, 
+                   flatfiled_fn = None, 
+                   ):
     """ Assuming im2 offset by -osetx, -osety, and im3 offset by +osetx, +osety """
     
     run = tiled_client[uid]
     my_im3 = getattr(run, stream_name[0]).read()['pilatus1_image'].to_numpy()[0][0]
     my_im2 = getattr(run, stream_name[1]).read()['pilatus1_image'].to_numpy()[0][0]
     my_im1 = getattr(run, stream_name[2]).read()['pilatus1_image'].to_numpy()[0][0]
+
+    if use_flatfiled:
+        flat_field = imread(flatfiled_fn)
+        my_im3 = my_im3 / flat_field
+        my_im2 = my_im2 / flat_field
+        my_im1 = my_im1 / flat_field
 
 
     # masks_pos_fn = ['Mask_pos1_ext_BS.npy', 'Mask_pos2_ext_BS.npy', 'Mask_pos3_ext_BS.npy']
@@ -49,6 +58,8 @@ def sum_everything(uid, stream_name, masks_path, masks_pos_flist, osetx = 27, os
 
 
 def save_image_sum_T(uid, stream_name, sample_name, osetx = 27, osety = 27, 
+                     use_flatfiled = False, 
+                     flatfiled_fn = None, 
                      masks_pos_flist = ['Mask_pos1_ext_BS.npy', 'Mask_pos2_ext_BS.npy', 'Mask_pos3_ext_BS.npy'], 
                      masks_path = '/nsls2/data3/pdf/pdfhack/legacy/processed/xpdacq_data/user_data/config_base/pilatus_mask',  
                      tiff_base_path = '/nsls2/data3/pdf/pdfhack/legacy/processed/xpdacq_data/user_data/tiff_base',
@@ -69,7 +80,8 @@ def save_image_sum_T(uid, stream_name, sample_name, osetx = 27, osety = 27,
     except (KeyError, IndexError, TypeError):
         T = 'None'
     
-    full_imsum = sum_everything(uid, stream_name, masks_path, masks_pos_flist, osety=osety, osetx=osetx)
+    full_imsum = sum_everything(uid, stream_name, masks_path, masks_pos_flist, osety=osety, osetx=osetx, 
+                                use_flatfiled=use_flatfiled, flatfiled_fn=flatfiled_fn, )
     
     # Save output file to the new 'sum' directory
     sum_tiff_fn = f"{sum_dir}/{File_Name_Prefix}_Temperature_{T}_K_sum.tiff"
@@ -90,7 +102,7 @@ def pct_integration(img, fn_prefix, binning=5000, polarization=0.99, UNIT = "q_A
     ai = pyFAI.load(poni_fn)
     mask0 = np.load(mask_fn)
     
-    i2d, q2d, chi2d = ai.integrate2d(img, binning, unit=UNIT, npt_azim=3600, polarization_factor=polarization, mask=mask0) # perform azimuthalintegration on one image to retain 2D information
+    # i2d, q2d, chi2d = ai.integrate2d(img, binning, unit=UNIT, npt_azim=3600, polarization_factor=polarization, mask=mask0) # perform azimuthalintegration on one image to retain 2D information
     intrinsic_mask_unrolled,_,_ = ai.integrate2d(mask0, binning, unit=UNIT, npt_azim=3600, polarization_factor=polarization, mask=mask0)  #trasnform mask0 (base mask) to the same coordinate space and cast it as type bool
     #intrinsic_mask_unrolled = intrinsic_mask_unrolled.astype(bool) 
     outlier_mask_2d = np.zeros_like(i2d)     # Create an array to hold outlier mask
@@ -124,6 +136,8 @@ from pdfstream.transformation.main import get_pdf
 from diffpy.pdfgetx import PDFConfig
 from diffpy.pdfgetx.pdfgetter import PDFConfigError
 import typing
+import diffpy.pdfgetx.pdfgetxapplication as dipp
+
 
 
 ## Copy from https://github.com/NSLS2/xpd-profile-collection-ldrd20-31/blob/main/scripts/_get_pdf.py
@@ -134,7 +148,17 @@ def transform_bkg(
     plot_setting: typing.Union[str, dict] = None,
     test: bool = False,
     gr_fn: str = '/home/xf28id2/Documents/test.gr', 
+    use_tuneconfig = False, 
     ) -> typing.Dict[str, str]:
+
+    # Close previosu pdf plot and tuneconfig
+    try:
+        fig_pdf = plt.figure(1)
+        fig_tune = plt.figure('tuneconfig')
+        plt.close(fig_tune)
+        plt.close(fig_pdf)
+    except (KeyError, IndexError, NameError):
+        pass
     
     """Transform the data."""
     if isinstance(cfg_file,str):
@@ -158,6 +182,11 @@ def transform_bkg(
     dct = write_pdfgetter(output_dir, gr_fn, pdfgetter)
     if not test:
         plt.show()
+
+    if use_tuneconfig:
+        plt.show()
+        getxApp = dipp.PDFGetXApplication("pdfgetx3")
+        getxApp.tuneconfig(pdfgetter=pdfgetter)
     
     return dct, pdfconfig
 
@@ -198,7 +227,7 @@ def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix, is_autobkg=Tr
         a_bkg = auto_bkg(iq_data, bkg_fn)
         a_bkg.pdload_data(skiprows=1, sep=' ', names=['Q', 'I'])
         a_bkg.pdload_bkg(skiprows=1, sep=' ', names=['Q', 'I'])
-        res = a_bkg.min_integral()
+        res = a_bkg.min_integral(bkg_tor=0.01)
         pdfconfig.bgscales[0] = res.x
         print(f'\nUpdate {pdfconfig.bgscales[0] = } by auto_bkg\n')
         # a_bkg.plot_sub()

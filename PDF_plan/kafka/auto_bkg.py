@@ -54,10 +54,10 @@ class auto_bkg():
         return integrate.simpson(self.data_sub(scale))
 
 
-    def min_integral(self):
+    def min_integral(self, bkg_tor=0.01):
         # Define a constraint where 0 <= x[0] + x[1] <= 1
         # nlc = NonlinearConstraint(self.data_sub, 0, 50)
-        nlc = [{'type': 'ineq', 'fun': self.data_sub} # 1 - x0^2 - x1 >= 0
+        nlc = [{'type': 'ineq', 'fun': self.data_sub-bkg_tor} # 1 - x0^2 - x1 >= 0
               ]
         
         a0 = self.guess_01()
