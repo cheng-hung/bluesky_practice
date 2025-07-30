@@ -36,83 +36,31 @@ class Pilatus_config(ConfigParser):
 
 
 
-class Pilatus_sum(Pilatus_config):
+class Pilatus_pro(Pilatus_config):
 
     def __init__(self, uid, config_fn, **kwargs):
         self.uid = uid
         super().__init__(config_fn, **kwargs)
 
-        self.raw_db = self.get()
-        self.tiled_client = from_profile('pdf')
-        # user_data, bkg_fn, 
-        # # masks_path = None, 
-        # masks_pos_fn = None, 
-        # osetx = 27, osety = 27, 
-        # poni_fn = None, 
-        # stitched_mask_fn = None, 
-        # binning = 5000, polarization = 0.99, 
-        # UNIT = "q_A^-1", ll=1, ul=99, 
-        # do_reduction = True, 
-        # cfg_fn = None, 
+        self.raw_db = self.get('topics', 'raw_db', fallback='pdf')
+        self.tiled_client = from_profile(self.raw_db)
 
-        # ):
 
-        self.uid = uid
-        self.full_uid = tiled_client[uid].start['uid']
-        self.user_data = user_data
-        self.bkg_fn = bkg_fn
-
-        self.tiff_base_path = os.path.join(user_data, 'tiff_base')
-        self.config_base_path = os.path.join(user_data, 'config_base')
-
-        # if masks_path is None:
-        #     self.masks_path = os.path.join(self.config_base_path, 'pilatus_mask')
+        # if cfg_fn is None:
+        #     fnn = os.path.join(self.config_base_path, 'pdfgetx', '**.cfg')
+        #     self.cfg_fn = glob.glob(fnn)[0]
         # else:
-        #     self.masks_path = masks_path
+        #     self.cfg_fn = cfg_fn
 
-        if masks_pos_fn is None:
-            masks_path = os.path.join(self.config_base_path, 'pilatus_mask')
-            self.masks_pos_fn = glob.glob(os.path.join(masks_path, '/**pos**.npy')).sort()
-        else:
-            self.masks_pos_fn = masks_pos_fn
-
-        self.osetx = osetx
-        self.osety = osety
-
-        if poni_fn is None:
-            self.poni_fn = os.path.join(self.config_base_path, 'merged_PDF', 'merged_dioptas.poni')
-        else:
-            self.poni_fn = poni_fn
-
-        if stitched_mask_fn is None:
-            masks_path = os.path.join(self.config_base_path, 'pilatus_mask')
-            self.stitched_mask_fn = os.path.join(masks_path, 'stitched_2.npy')
-        else:
-            self.stitched_mask_fn = self.stitched_mask_fn
-
-        self.binning = binning
-        self.polarization = polarization
-        self.UNIT = UNIT
-        self.ll=ll
-        self.ul=ul
-
-        self.do_reduction = do_reduction
-
-        if cfg_fn is None:
-            fnn = os.path.join(self.config_base_path, 'pdfgetx', '**.cfg')
-            self.cfg_fn = glob.glob(fnn)[0]
-        else:
-            self.cfg_fn = cfg_fn
-
-        self.sample_name = tiled_client[uid].start['sample_name']
-        self.composition_string = tiled_client[uid].start['composition_string']
+        # self.sample_name = tiled_client[uid].start['sample_name']
+        # self.composition_string = tiled_client[uid].start['composition_string']
         
-        try:
-            self.cryostat_A = tiled_client[uid].start['more_info']['cryostat_A']
-        except (KeyError):
-            self.cryostat_A = 300
+        # try:
+        #     self.cryostat_A = tiled_client[uid].start['more_info']['cryostat_A']
+        # except (KeyError):
+        #     self.cryostat_A = 300
         
-        self.stream_name = None
+        # self.stream_name = None
 
 
         
