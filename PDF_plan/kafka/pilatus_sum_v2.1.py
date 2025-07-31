@@ -1,24 +1,26 @@
 import pyFAI
-import pyFAI.calibrant
-import pyFAI.detectors
-import os, glob, re
-# from ipywidgets import interact, interactive, fixed, interact_manual, HBox, VBox
-# import ipywidgets as widgets
-from tifffile import imread, imshow, imsave
+import os
+from tifffile import imread
 import numpy as np
 import numpy.ma as ma
 import matplotlib.pyplot as plt
-# import matplotlib.colors as colors
-# from matplotlib import gridspec
-# from matplotlib.widgets import Slider, Button
-import yaml, tifffile
-# %matplotlib widget
+import tifffile
 from configparser import ConfigParser
 import pandas as pd
+
+
+from pdfstream.transformation.io import write_pdfgetter
+from pdfstream.transformation.main import get_pdf
+from diffpy.pdfgetx import PDFConfig
+# from diffpy.pdfgetx.pdfgetter import PDFConfigError
+
 
 from tiled.client import from_profile
 tiled_client = from_profile('pdf')
 
+
+import importlib
+auto_bkg = importlib.import_module("auto_bkg").auto_bkg
 
 
 def _readable_time(unix_time):
@@ -41,13 +43,18 @@ def file_prefix_producer(uid, tiled_client):
 
 
 def iq_saver(fn, df, md, header=['q_A^-1', 'I(q)']):
+    
     with open(fn, mode='w', encoding='utf-8') as f:
         f.write('pyFai_poni_information_28ID1_NSLS2_BNL\n')
+        num_row = 1
         for key, value in md.items():
             f.write(f'{key} {value}\n')
+            num_row += 1
+    
     # Now append the dataframe without a header
     df.to_csv(fn, encoding='utf-8', mode='a', header=header, index=False, float_format='{:.8e}'.format, sep=' ')
 
+    return num_row
 
 
 class Pilatus_config(ConfigParser):
@@ -138,10 +145,14 @@ class Pilatus_sum(Pilatus_config):
         return os.path.join(self.config_base, n_folder, n)
     
     @property
+    def T_controller(self):
+        return self.get('TEMPERATURE', 'temp_controller', fallback='No_temp_controller')
+    
+    @property
     def temperature(self):
         try:
-            temp_controller = self.get('TEMPERATURE', 'temp_controller', fallback='cryostat_A')
-            T = self.run.start['more_info'][temp_controller]
+            # temp_controller = self.get('TEMPERATURE', 'temp_controller', fallback='No_temp_controller')
+            T = self.run.start['more_info'][self.T_controller]
 
         except (KeyError, IndexError, TypeError):
             T = 'None'
@@ -259,6 +270,8 @@ class Pilatus_Int(Pilatus_sum):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        self.num_rows_header = 1
+
     @property
     def merged_poin(self):
         n = self.get('PATH', 'merged_poin', fallback='merged.poni')
@@ -284,8 +297,13 @@ class Pilatus_Int(Pilatus_sum):
 
 
     @property
-    def binning(self):
-        return self.getint('INTEGRATION', 'binning', fallback=4096)
+    def npt_rad(self):
+        # equivalent to binning
+        return self.getint('INTEGRATION', 'npt_rad', fallback=4096)
+    
+    @property
+    def npt_azim(self):
+        return self.getint('INTEGRATION', 'npt_azim', fallback=3600)
     
     @property
     def polarization(self):
@@ -310,16 +328,16 @@ class Pilatus_Int(Pilatus_sum):
         mask0 = np.load(self.stitched_mask)
         
         ## perform azimuthalintegration on one image to retain 2D information
-        ## i2d.shape is (npt_azim, self.binning) which corresponds the intensity of 2D image cake
-        ## q2d.shape is (self.binning, )
-        i2d, q1d, chi1d = ai.integrate2d(full_imsum, self.binning, 
-                                         unit=self.UNIT, npt_azim=3600, 
+        ## i2d.shape is (self.npt_azim, self.npt_rad) which corresponds the intensity of 2D image cake
+        ## q1d.shape is (self.npt_rad, )
+        i2d, q1d, chi1d = ai.integrate2d(full_imsum, self.npt_rad, 
+                                         unit=self.UNIT, npt_azim=self.npt_azim, 
                                          polarization_factor=self.polarization, 
                                          mask=mask0) 
         
         ## trasnform mask0 (base mask) to the same coordinate space and cast it as type bool
-        intrinsic_mask_unrolled, _, _ = ai.integrate2d(mask0, self.binning, 
-                                                       unit=self.UNIT, npt_azim=3600, 
+        intrinsic_mask_unrolled, _, _ = ai.integrate2d(mask0, self.npt_rad, 
+                                                       unit=self.UNIT, npt_azim=self.npt_azim, 
                                                        polarization_factor=self.polarization, 
                                                        mask=mask0)
         #intrinsic_mask_unrolled = intrinsic_mask_unrolled.astype(bool) 
@@ -335,12 +353,12 @@ class Pilatus_Int(Pilatus_sum):
           
         outlier_mask_2d_masked = ma.masked_array(i2d, mask=outlier_mask_2d + mask1)
         
-        ## calculate mean values along radial direction (axis=0) to make i1d.shape is (self.binning, )
+        ## calculate mean values along radial direction (axis=0) to make i1d.shape is (self.npt_rad, )
         i1d = ma.mean(outlier_mask_2d_masked, axis=0)
         
-        df = pd.DataFrame()
-        df['q'] = q1d
-        df['I'] = i1d
+        iq_df = pd.DataFrame()
+        iq_df['q'] = q1d
+        iq_df['I'] = i1d
         iq_fn = os.path.join(sum_dir, f'{self.file_name_prefix}_sum.iq')
         md = ai.getPyFAI()
         _md = {'detector': self.run.start['sp_detector'], 
@@ -349,126 +367,164 @@ class Pilatus_Int(Pilatus_sum):
                'readable_time': self.readable_time, 
                'percentile_low_limit': self.ll, 
                'percentile_up_limit': self.ul, 
+               self.T_controller: self.temperature, 
                }
         md.update(_md)
 
-        iq_saver(iq_fn, df, md)
+        ## num_row will be the number of rows of the header in saved iq data file
+        self.num_rows_header = iq_saver(iq_fn, iq_df, md)
         print(f'\n*** {os.path.basename(iq_fn)} saved!! ***\n')
 
-        return df, iq_fn
+        return iq_df
+
+
+
+
+
+
+class Pilatus_getpdf(Pilatus_Int):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.auto_bkg = 1.0
+
+    @property
+    def use_auto_bkg(self):
+        return self.getboolean('pdfgetx3', 'use_auto_bkg', fallback=False)
+
+    @property
+    def pdfconfig_dict(self):
+        return {
+            'dataformat':     self.get('pdfgetx3', 'dataformat', fallback='QA'), 
+            'outputtype':     self.get('pdfgetx3', 'outputtype', fallback='gr'), 
+            'backgroundfile': self.get('pdfgetx3', 'backgroundfile', fallback=''), 
+            'plot':           self.get('pdfgetx3', 'plot', fallback='none'), 
+            'bgscale':        self.getfloat('pdfgetx3', 'bgscale', fallback=0.98), 
+            'rpoly':          self.getfloat('pdfgetx3', 'rpoly', fallback=1.0), 
+            'qmaxinst':       self.getfloat('pdfgetx3', 'qmaxinst', fallback=27.0), 
+            'qmin':           self.getfloat('pdfgetx3', 'qmin', fallback=0.6), 
+            'qmax':           self.getfloat('pdfgetx3', 'qmax', fallback=25.0), 
+            'rmin':           self.getfloat('pdfgetx3', 'rmin', fallback=0.0), 
+            'rmax':           self.getfloat('pdfgetx3', 'rmax', fallback=100.0), 
+            'rstep':          self.getfloat('pdfgetx3', 'rstep', fallback=0.1), 
+            }
+
+
+
+    def pdfconfig(self):
+        
+        p = PDFConfig()
+        for key, value in self.pdfconfig_dict:
+            setattr(p, key, value)
+        
+        return p
+
+
+
+    ## Modified from https://github.com/NSLS2/xpd-profile-collection-ldrd20-31/blob/main/scripts/_get_pdf.py
+    def transform_bkg(self, iq_df, sum_dir, test=False):
+        
+        # try:
+        #     pdfgetter = get_pdf(self.pdfconfig(), iq_df, plot_setting=self.plot)
+        
+        # except PDFConfigError:
+        #     pdfgetter = get_pdf(self.pdfconfig(), iq_df, plot_setting='OFF')
+        
+        pdfgetter = get_pdf(self.pdfconfig(), iq_df, plot_setting='OFF')
+
+        sqfqgr_path = write_pdfgetter(sum_dir, f'{self.file_name_prefix}_sum', pdfgetter)
+        
+        # if not test:
+        #     plt.show()
+        
+        return sqfqgr_path
+
+
+
+
+    def get_gr(self, iq_df, sum_dir, num_row):
+
+        try:
+            self.pdfconfig().composition = self.run.start['composition_string']
+            print(f'\n\nFound composition as {self.run.start['composition_string'] = }')
+
+        except (KeyError):
+            self.pdfconfig().composition = 'Ni1.0'
+            print(f'\n\nCan not find sample composition in run.start. Use "Ni1.0" instead.')
+
+        
+        ## Use auto_bkg to repalce the bkg in pdfconfig
+        if self.use_auto_bkg:
+            a_bkg = auto_bkg()
+            a_bkg.data_df = iq_df
+            a_bkg.pdload_bkg(self.pdfconfig_dict['backgroundfile'], 
+                             skiprows=self.num_rows_header, 
+                             sep=' ', names=['Q', 'I'])
+            res = a_bkg.min_integral(bkg_tor=0.01)
+            self.pdfconfig().bgscale[0] = res.x
+            self.auto_bkg = res.x
+            print(f'\nUpdate {self.pdfconfig().bgscales[0] = } by auto_bkg\n')
+            # a_bkg.plot_sub()
+
+
+        sqfqgr_path = self.transform_bkg(iq_df, sum_dir)
+        
+        print(f'\n*** {os.path.basename(sqfqgr_path["gr"])} saved!! ***\n')
+
+        return sqfqgr_path
+
 
 
 
 '''
 
-from pdfstream.io import load_array
-from pdfstream.transformation.io import load_pdfconfig, write_pdfgetter
-from pdfstream.transformation.main import get_pdf
-from diffpy.pdfgetx import PDFConfig
-from diffpy.pdfgetx.pdfgetter import PDFConfigError
-import typing
-
-
-## Copy from https://github.com/NSLS2/xpd-profile-collection-ldrd20-31/blob/main/scripts/_get_pdf.py
-def transform_bkg(
-    cfg_file,
-    data_file: str,
-    output_dir: str = ".",
-    plot_setting: typing.Union[str, dict] = None,
-    test: bool = False,
-    gr_fn: str = '/home/xf28id2/Documents/test.gr', 
-    ) -> typing.Dict[str, str]:
+    @property
+    def backgroundfile(self):
+        return self.get('pdfgetx3', 'backgroundfile', fallback='')
     
-    """Transform the data."""
-    if isinstance(cfg_file,str):
-        pdfconfig = load_pdfconfig(cfg_file)
-    else:
-        pdfconfig = cfg_file
+    @property
+    def bgscale(self):
+        return self.getfloat('pdfgetx3', 'bgscale', fallback=0.98)
     
-    if type(data_file) is str:
-        chi = load_array(data_file)
-    elif type(data_file) is np.ndarray:
-        chi = data_file
+    @property
+    def rpoly(self):
+        return self.getfloat('pdfgetx3', 'rpoly', fallback=1.0)
+
+    @property
+    def qmaxinst(self):
+        return self.getfloat('pdfgetx3', 'qmaxinst', fallback=27.0)
     
-    try:
-        pdfgetter = get_pdf(pdfconfig, chi, plot_setting=plot_setting)
-    except PDFConfigError:
-        pdfgetter = get_pdf(pdfconfig, chi, plot_setting='OFF')
+    @property
+    def qmin(self):
+        return self.getfloat('pdfgetx3', 'qmin', fallback=0.6)
     
-    # filename = Path(data_file).stem
-    # dct = write_pdfgetter(output_dir, filename, pdfgetter)
+    @property
+    def qmax(self):
+        return self.getfloat('pdfgetx3', 'qmax', fallback=25.0)
+
+    @property
+    def rmin(self):
+        return self.getfloat('pdfgetx3', 'rmin', fallback=0.0)
     
-    dct = write_pdfgetter(output_dir, gr_fn, pdfgetter)
-    if not test:
-        plt.show()
+    @property
+    def rmax(self):
+        return self.getfloat('pdfgetx3', 'rmax', fallback=100.0)
     
-    return dct, pdfconfig
-
-
-## Add by CHLin on 2025/06/13 to turn sample_composition from dict to string
-def composition_maker(scan_comp):
-    com = ''
-    for i in scan_comp.keys():
-        com += f'{i} {scan_comp[i] }'
-
-    return com
-
-
-
-def get_gr(uid, iq_data, cfg_fn, bkg_fn, output_dir, gr_fn_prefix):
-    run = tiled_client[uid]
+    @property
+    def rstep(self):
+        return self.getfloat('pdfgetx3', 'rstep', fallback=0.1)
     
-    ## run.start['sample_composition'] is a dict but pdfconfig takes a string for composition 
-    # scan_com = run.start['sample_composition']
-
-    pdfconfig = PDFConfig()
-    pdfconfig.readConfig(cfg_fn)
-
-    # pdfconfig.composition = composition_maker(scan_com)
-
-    ## There is also a string for composition in run.start. Updated by CHLin on 2025/06/16
-    try:
-        pdfconfig.composition = run.start['composition_string']
-        print(f'\n\nFound composition as {run.start['composition_string'] = }')
-
-    except (KeyError):
-        pdfconfig.composition = 'Ni1.0'
-        print(f'\n\nCan not find sample composition in run.start. Use "Ni1.0" instead.')
-
-    pdfconfig.backgroundfiles = bkg_fn
-    sqfqgr_path, pdfconfig = transform_bkg(
-                pdfconfig, iq_data, 
-                output_dir = output_dir, 
-                plot_setting={'marker':'.','color':'green'}, test=True, 
-                gr_fn=gr_fn_prefix)
+    @property
+    def dataformat(self):
+        return self.get('pdfgetx3', 'dataformat', fallback='QA')
     
-    print(f'\n*** {os.path.basename(sqfqgr_path["gr"])} saved!! ***\n')
-
-    return sqfqgr_path, pdfconfig
-    pdfconfig.readConfig(cfg_fn)
-
-    # pdfconfig.composition = composition_maker(scan_com)
-
-    ## There is also a string for composition in run.start. Updated by CHLin on 2025/06/16
-    try:
-        pdfconfig.composition = run.start['composition_string']
-        print(f'\n\nFound composition as {run.start['composition_string'] = }')
-
-    except (KeyError):
-        pdfconfig.composition = 'Ni1.0'
-        print(f'\n\nCan not find sample composition in run.start. Use "Ni1.0" instead.')
-
-    pdfconfig.backgroundfiles = bkg_fn
-    sqfqgr_path, pdfconfig = transform_bkg(
-                pdfconfig, iq_data, 
-                output_dir = output_dir, 
-                plot_setting={'marker':'.','color':'green'}, test=True, 
-                gr_fn=gr_fn_prefix)
+    @property
+    def outputtype(self):
+        return self.get('pdfgetx3', 'outputtype', fallback='gr')     
     
-    print(f'\n*** {os.path.basename(sqfqgr_path["gr"])} saved!! ***\n')
-
-    return sqfqgr_path, pdfconfig
-
+    
+    
 '''
 
 
