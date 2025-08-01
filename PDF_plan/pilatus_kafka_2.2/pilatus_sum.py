@@ -45,8 +45,12 @@ class Pilatus_sum(Pilatus_config):
 
         self.full_uid = self.run.start['uid']
 
-        self.sample_name = None  ## update at start doc
-        self.stream_name = None  ## update at stop doc 
+        self.sample_name = self.run.start['sample_name']  ## update at start doc
+        self.stream_name = []  ## update at stop doc 
+
+    @property
+    def stream_length(self):
+        return len(self.stream_name)
 
     @property
     def user_data(self):
@@ -55,27 +59,24 @@ class Pilatus_sum(Pilatus_config):
     
     @property
     def tiff_base(self):
-        fallback = 'tiff_base'
-        n = self.get('PATH', 'tiff_base', fallback=fallback)
+        n = self.get('PATH', 'tiff_base', fallback='tiff_base')
         return os.path.join(self.user_data, n)
     
     @property
     def config_base(self):
-        fallback = 'config_base'
-        n = self.get('PATH', 'config_base', fallback=fallback)
+        n = self.get('PATH', 'config_base', fallback='config_base')
         return os.path.join(self.user_data, n)     
 
     @property
     def pilatus_PDF(self):
-        fallback = 'pilatus_PDF'
-        n = self.get('PATH', 'pilatus_PDF', fallback=fallback)
+        n = self.get('PATH', 'pilatus_PDF', fallback='pilatus_PDF')
         return os.path.join(self.config_base, n)
     
     @property
     def pilatus_XRD(self):
-        fallback = 'pilatus_XRD'
-        n = self.get('PATH', 'pilatus_XRD', fallback=fallback)
-        return os.path.join(self.config_base, n)  
+        n = self.get('PATH', 'pilatus_XRD', fallback='pilatus_XRD')
+        return os.path.join(self.config_base, n)
+    
 
     @property
     def masks_pos_flist(self):
@@ -93,13 +94,23 @@ class Pilatus_sum(Pilatus_config):
         return self.getint('SUM', 'osety', fallback=27)
     
     @property
-    def use_flat_field(self):
-        return self.getboolean('SUM', 'use_flat_field', fallback=False)
+    def use_flat_field_pila(self):
+        return self.getboolean('SUM', 'use_flat_field_pila', fallback=False)
     
     @property
-    def flat_field(self):
+    def flat_field_pila(self):
         n_folder = self.get('PATH', 'flat_filed', fallback='flat_filed')
-        n = self.get('PATH', 'flat_field_fn', fallback='flat_filed.tiff')
+        n = self.get('PATH', 'flat_field_pila', fallback='flat_field_pila.tiff')
+        return os.path.join(self.config_base, n_folder, n)
+    
+    @property
+    def use_flat_field_pe1c(self):
+        return self.getboolean('SUM', 'use_flat_field_pe1c', fallback=False)
+    
+    @property
+    def flat_field_pe1c(self):
+        n_folder = self.get('PATH', 'flat_filed', fallback='flat_filed')
+        n = self.get('PATH', 'flat_field_pe1c', fallback='flat_field_pe1c.tiff')
         return os.path.join(self.config_base, n_folder, n)
     
     @property
@@ -168,8 +179,8 @@ class Pilatus_sum(Pilatus_config):
         my_im2 = getattr(self.run, self.stream_name[1]).read()['pilatus1_image'].to_numpy()[0][0]
         my_im1 = getattr(self.run, self.stream_name[2]).read()['pilatus1_image'].to_numpy()[0][0]
 
-        if self.use_flat_field:
-            flat_field = tifffile.imread(self.flat_field)
+        if self.use_flat_field_pila:
+            flat_field = tifffile.imread(self.flat_field_pila)
             my_im3 = my_im3 / flat_field
             my_im2 = my_im2 / flat_field
             my_im1 = my_im1 / flat_field
@@ -207,14 +218,35 @@ class Pilatus_sum(Pilatus_config):
 
         data_dir = os.path.join(self.tiff_base, self.sample_name, "dark_sub")
 
-        sum_dir = os.path.join(data_dir, 'sum')
-        os.makedirs(sum_dir, exist_ok=True)  # Create 'sum' directory if it doesn't exis
+        process_dir = os.path.join(data_dir, 'sum')
+        os.makedirs(process_dir, exist_ok=True)  # Create 'sum' directory if it doesn't exis
         
         full_imsum = self.sum_everything()
         
         # Save output file to the new 'sum' directory
-        sum_tiff_fn = os.path.join(sum_dir, f'{self.file_name_prefix}_sum.tiff')
-        tifffile.imsave(sum_tiff_fn, full_imsum)
-        print(f'\n*** {os.path.basename(sum_tiff_fn)} saved!! ***\n')
+        tiff_fn = os.path.join(process_dir, f'{self.file_name_prefix}_sum.tiff')
+        tifffile.imsave(tiff_fn, full_imsum)
+        print(f'\n*** {os.path.basename(tiff_fn)} saved!! ***\n')
 
-        return full_imsum, sum_dir
+        return full_imsum, process_dir
+    
+
+    def flat_filed_pe1c(self):
+        # run = tiled_client[uid]
+        full_imsum = getattr(self.run, self.stream_name[0]).read()['pe1c_image'].to_numpy()[0][0]
+        
+        if self.use_flat_field_pe1c:
+            flat_field = tifffile.imread(self.flat_field_pe1c)
+            full_imsum = full_imsum / flat_field
+
+        data_dir = os.path.join(self.tiff_base, self.sample_name, "dark_sub")
+        process_dir = os.path.join(data_dir, 'flat_field')
+
+        # Save output file to the new 'sum' directory
+        tiff_fn = os.path.join(process_dir, f'{self.file_name_prefix}_flat.tiff')
+        tifffile.imsave(tiff_fn, full_imsum)
+        print(f'\n*** {os.path.basename(tiff_fn)} saved!! ***\n')
+
+        return full_imsum, process_dir
+
+        

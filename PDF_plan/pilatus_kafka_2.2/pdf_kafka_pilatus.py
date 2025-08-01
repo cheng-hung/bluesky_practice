@@ -1,4 +1,3 @@
-import os
 import datetime
 import pprint
 import uuid
@@ -65,12 +64,9 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
                 print(f"\n{message['topic'] = }\n")
             except KeyError:
                 print(f"\nThis document has no topic.\n")
-            
-            # global uid, sample_name            
+                     
             uid = message['uid']
-            sample_name = message['sample_name']
             pila_analyzer = Pilatus_getpdf(uid, tiled_client, ini_config)
-            pila_analyzer.sample_name = sample_name
                 
 
         # elif name == 'event':
@@ -95,14 +91,13 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
             except KeyError:
                 print(f"\nThis document has no topic.\n")
 
-            # global stream_name
             stream_name = list(message['num_events'].keys())
             pila_analyzer.stream_name = stream_name
             print(f'\n{stream_name = }\n')
         
-        
-        elif (name == 'stop') and ('topic' in message) and (message['num_events']['primary']==3):
-        #     # print('Kafka test good!!')
+
+        # elif (name == 'stop') and ('topic' in message) and (message['num_events']['primary']==3):
+        elif (name == 'stop') and ('topic' in message):
             print(
                 f"\n{datetime.datetime.now().isoformat()} documents {name}\n"
                 f"\ndocument keys: {list(message.keys())}\n"
@@ -113,26 +108,35 @@ def print_kafka_messages(beamline_acronym_01, beamline_acronym_02,
             except KeyError:
                 print(f"\nThis document has no topic.\n")
 
-            print(
-                f"\nStart to stitch pilatus1 data uid = {uid}\n"
-            )
-
-
             plotter = pilaplot.plot_pilatus(pila_analyzer.sample_name)
 
             ## Sum three images at three positions
-            full_imsum, sum_dir = pila_analyzer.save_image_sum_T
-            plotter.plot_tiff(full_imsum)
+            if message['num_events']['primary']==3:
+                print(f"\nStart to stitch {pila_analyzer.run.start['sp_detector']} data: uid = {pila_analyzer.uid}\n")
+                full_imsum, process_dir = pila_analyzer.save_image_sum_T()
+                mask_img = np.load(pila_analyzer.stitched_mask)
+                plotter.plot_tiff(full_imsum, mask_img)
+
+            ## Process pe1c data without stitching 
+            elif pila_analyzer.use_flat_field_pe1c:
+                print(f"\nStart to process {pila_analyzer.run.start['detectors'][0]} data: uid = {pila_analyzer.uid}\n")
+                full_imsum, process_dir = pila_analyzer.flat_filed_pe1c()
+                mask_img = np.load(pila_analyzer.mask_pe1c)
+                plotter.plot_tiff2(full_imsum, mask_img)
 
             ## pyFai integration: 2D to 1D
-            iq_df, iq_fn = pila_analyzer.pct_integration(full_imsum, sum_dir)
+            print(f"\nStart to do 2D integration: uid = {uid}\n")
+            iq_df, iq_fn = pila_analyzer.pct_integration(full_imsum, process_dir)
             plotter.plot_iq(iq_fn)
 
             ## Data reduction: I(Q) to G(r)
-            if do_reduction:
-                sqfqgr_path, pdfconfig = pilasum.get_gr(uid, iq_fn, cfg_fn, bkg_fn, 
-                                         sum_dir, saved_fn_prefix, is_autobkg=is_autobkg)
-                plotter.plot_sqfqgr(sqfqgr_path, pdfconfig, bkg_fn)
+            if pila_analyzer.do_reduction:
+                print(f"\nStart to reduce sq, fq, gr: uid = {uid}\n")
+                sqfqgr_path = pila_analyzer.get_gr(iq_df, process_dir)
+                
+                bkg_scale = pila_analyzer.pdfconfig().bgscale[0]
+                bkg_fn = pila_analyzer.pdfconfig_dict['backgroundfile']
+                plotter.plot_sqfqgr(sqfqgr_path, bkg_scale, bkg_fn)
 
 
             print('\n########### Events printing division ############\n')

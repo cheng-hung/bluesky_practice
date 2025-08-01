@@ -17,9 +17,10 @@ def iq_saver(fn, df, md, header=['q_A^-1', 'I(q)']):
             f.write(f'{key} {value}\n')
             num_row += 1
     
-    # Now append the dataframe without a header
+    ## Now append the dataframe
     df.to_csv(fn, encoding='utf-8', mode='a', header=header, index=False, float_format='{:.8e}'.format, sep=' ')
 
+    ## return the number of rows of the header
     return num_row
 
 
@@ -52,6 +53,41 @@ class Pilatus_Int(Pilatus_sum):
             n_folder = self.pilatus_XRD
 
         return os.path.join(n_folder, n)
+    
+
+    @property
+    def pe1c_PDF(self):
+        n = self.get('PATH', 'pe1c_PDF', fallback='pe1c_PDF')
+        return os.path.join(self.config_base, n)
+    
+    @property
+    def pe1c_XRD(self):
+        n = self.get('PATH', 'pe1c_XRD', fallback='pe1c_XRD')
+        return os.path.join(self.config_base, n)
+
+
+    @property
+    def poni_pe1c(self):
+        n = self.get('PATH', 'poni_pe1c', fallback='xpdAcq_calib_info.poni')
+
+        if self.is_pdf_xrd() == 'PDF':
+            n_folder = self.pe1c_PDF
+        else:
+            n_folder = self.pe1c_XRD
+
+        return os.path.join(n_folder, n)
+    
+
+    @property
+    def mask_pe1c(self):
+        n = self.get('PATH', 'mask_pe1c', fallback='Mask.npy')
+
+        if self.is_pdf_xrd() == 'PDF':
+            n_folder = self.pe1c_PDF
+        else:
+            n_folder = self.pe1c_XRD
+
+        return os.path.join(n_folder, n)
 
 
     @property
@@ -80,10 +116,15 @@ class Pilatus_Int(Pilatus_sum):
         return self.getfloat('INTEGRATION', 'up_limit_pcfilter', fallback=99.0) 
 
     
-    def pct_integration(self, full_imsum, sum_dir):
+    def pct_integration(self, full_imsum, process_dir):
 
-        ai = pyFAI.load(self.merged_poin)
-        mask0 = np.load(self.stitched_mask)
+        if self.run.start['detectors'][0] == 'pilatus1':
+            ai = pyFAI.load(self.merged_poin)
+            mask0 = np.load(self.stitched_mask)
+
+        elif self.run.start['detectors'][0] == 'pe1c':
+            ai = pyFAI.load(self.poni_pe1c)
+            mask0 = np.load(self.mask_pe1c)
         
         ## perform azimuthalintegration on one image to retain 2D information
         ## i2d.shape is (self.npt_azim, self.npt_rad) which corresponds the intensity of 2D image cake
@@ -117,9 +158,9 @@ class Pilatus_Int(Pilatus_sum):
         iq_df = pd.DataFrame()
         iq_df['q'] = q1d
         iq_df['I'] = i1d
-        iq_fn = os.path.join(sum_dir, f'{self.file_name_prefix}_sum.iq')
+        iq_fn = os.path.join(process_dir, f'{self.file_name_prefix}_sum.iq')
         md = ai.getPyFAI()
-        _md = {'detector': self.run.start['sp_detector'], 
+        _md = {'detector': self.run.start['detectors'][0], 
                'uid':self.full_uid, 
                'time': self.run.start['time'], 
                'readable_time': self.readable_time, 

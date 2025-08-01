@@ -21,6 +21,10 @@ class Pilatus_getpdf(Pilatus_Int):
         return self.getboolean('pdfgetx3', 'use_auto_bkg', fallback=False)
 
     @property
+    def do_reduction(self):
+        return self.getboolean('pdfgetx3', 'do_reduction', fallback=True)
+
+    @property
     def pdfconfig_dict(self):
         return {
             'dataformat':     self.get('pdfgetx3', 'dataformat', fallback='QA'), 
@@ -50,7 +54,7 @@ class Pilatus_getpdf(Pilatus_Int):
 
 
     ## Modified from https://github.com/NSLS2/xpd-profile-collection-ldrd20-31/blob/main/scripts/_get_pdf.py
-    def transform_bkg(self, iq_df, sum_dir, test=False):
+    def transform_bkg(self, iq_df, process_dir, test=False):
         
         # try:
         #     pdfgetter = get_pdf(self.pdfconfig(), iq_df, plot_setting=self.plot)
@@ -60,7 +64,7 @@ class Pilatus_getpdf(Pilatus_Int):
         
         pdfgetter = get_pdf(self.pdfconfig(), iq_df, plot_setting='OFF')
 
-        sqfqgr_path = write_pdfgetter(sum_dir, f'{self.file_name_prefix}_sum', pdfgetter)
+        sqfqgr_path = write_pdfgetter(process_dir, f'{self.file_name_prefix}_sum', pdfgetter)
         
         # if not test:
         #     plt.show()
@@ -70,7 +74,7 @@ class Pilatus_getpdf(Pilatus_Int):
 
 
 
-    def get_gr(self, iq_df, sum_dir, num_row):
+    def get_gr(self, iq_df, process_dir):
 
         try:
             self.pdfconfig().composition = self.run.start['composition_string']
@@ -95,7 +99,7 @@ class Pilatus_getpdf(Pilatus_Int):
             # a_bkg.plot_sub()
 
 
-        sqfqgr_path = self.transform_bkg(iq_df, sum_dir)
+        sqfqgr_path = self.transform_bkg(iq_df, process_dir)
         
         print(f'\n*** {os.path.basename(sqfqgr_path["gr"])} saved!! ***\n')
 

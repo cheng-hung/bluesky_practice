@@ -66,6 +66,52 @@ class plot_pilatus(open_figures):
         f.canvas.manager.show()
         f.canvas.flush_events()
 
+
+
+    def plot_tiff2(self, full_imsum, mask_img, title=None):
+        
+        try:
+            f = plt.figure(self.fig[0])
+        except (IndexError): 
+            f = plt.figure(self.fig[-1])
+
+        plt.clf()
+        # ax = f.gca()
+        ax1 = f.add_subplot(1, 2, 1)
+        ax2 = f.add_subplot(1, 2, 2)
+
+        vmax = np.nanpercentile(full_imsum, 98)
+        # vmax = 10000
+        if vmax==np.nan:
+           vmax = 10000
+
+        vmin = np.nanpercentile(full_imsum, 10)
+        if vmin==np.nan:
+           vmin = 0
+
+        im1 = ax1.imshow(full_imsum, label=self.sample_name, 
+                         vmin=vmin, vmax=vmax)
+        
+        im2 = ax2.imshow(mask_img, label=self.sample_name, 
+                         vmin=vmin, vmax=vmax)
+
+        f.colorbar(im1)
+        f.colorbar(im2)
+
+        if title != None:
+            ax1.set_title(title, prop=self.title_prop)
+            ax2.set_title(title, prop=self.title_prop)
+        else:
+            pass
+
+        ax1.tick_params(axis='both', labelsize=self.labelsize)
+        ax1.legend(prop=self.legend_prop)
+
+        ax2.tick_params(axis='both', labelsize=self.labelsize)
+        ax2.legend(prop=self.legend_prop)
+
+        f.canvas.manager.show()
+        f.canvas.flush_events()
         
         
     def plot_iq(self, iq_fn, title=None,):
@@ -148,7 +194,7 @@ class plot_pilatus(open_figures):
         
 
 
-    def plot_sqfqgr(self, sqfqgr_path, pdfconfig, bkg_fn, title=None):
+    def plot_sqfqgr(self, sqfqgr_path, bkg_scale, bkg_fn, title=None):
 
         try: 
             f = plt.figure(self.fig[1])
@@ -157,7 +203,8 @@ class plot_pilatus(open_figures):
 
         bkg_df = pd.read_csv(bkg_fn, names=['x', 'y'], sep=' ', skiprows=1)
 
-        scale = pdfconfig.bgscales[0]
+        # scale = pdfconfig.bgscales[0]
+        scale = bkg_scale
         ax = f.gca()
         ax.plot(bkg_df['x'], bkg_df['y']*scale, label='background', marker='.',color='green')
         ax.legend(prop=self.legend_prop)
