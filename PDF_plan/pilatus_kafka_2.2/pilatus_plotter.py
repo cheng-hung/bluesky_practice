@@ -8,7 +8,10 @@ import pandas as pd
 class open_figures():
     def __init__(self, figure_labels):
         for i in figure_labels:
-            plt.figure(num=i, figsize=(8,6))
+            if i==0:
+                plt.figure(num=i, figsize=(15,6), constrained_layout=True)
+            else:
+                plt.figure(num=i, figsize=(8,6))
 
 
 class plot_pilatus(open_figures):
@@ -95,8 +98,8 @@ class plot_pilatus(open_figures):
         im2 = ax2.imshow(mask_img, label=self.sample_name, 
                          vmin=vmin, vmax=vmax)
 
-        f.colorbar(im1)
-        f.colorbar(im2)
+        f.colorbar(im1, shrink=0.5)
+        f.colorbar(im2, shrink=0.5)
 
         if title != None:
             ax1.set_title(title, prop=self.title_prop)
@@ -104,24 +107,24 @@ class plot_pilatus(open_figures):
         else:
             pass
 
-        ax1.tick_params(axis='both', labelsize=self.labelsize)
-        ax1.legend(prop=self.legend_prop)
+        # ax1.tick_params(axis='both', labelsize=self.labelsize)
+        # ax1.legend(prop=self.legend_prop)
 
-        ax2.tick_params(axis='both', labelsize=self.labelsize)
-        ax2.legend(prop=self.legend_prop)
+        # ax2.tick_params(axis='both', labelsize=self.labelsize)
+        # ax2.legend(prop=self.legend_prop)
 
         f.canvas.manager.show()
         f.canvas.flush_events()
         
         
-    def plot_iq(self, iq_fn, title=None,):
+    def plot_iq(self, iq_fn, skip_rows, title=None,):
         
         try: 
             f = plt.figure(self.fig[1])
         except (IndexError): 
             f = plt.figure(self.fig[-1])
         
-        iq_df = pd.read_csv(iq_fn, names=['q', 'I(q)'], sep=' ')
+        iq_df = pd.read_csv(iq_fn, names=['q', 'I(q)'], sep=' ', skiprows=skip_rows)
 
         plt.clf()
         ax = f.gca()

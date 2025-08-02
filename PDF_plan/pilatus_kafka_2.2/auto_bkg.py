@@ -37,6 +37,10 @@ class auto_bkg():
 
     def data_sub(self, scale):
         return self.data_df.iloc[:,1] - scale*self.bkg_df.iloc[:,1]
+    
+
+    def data_sub2(self, scale):
+        return self.data_df.iloc[:,1] - scale*self.bkg_df.iloc[:,1] - 0.01
 
 
     def guess_01(self, update_scale=True):
@@ -56,10 +60,11 @@ class auto_bkg():
         return integrate.simpson(self.data_sub(scale))
 
 
-    def min_integral(self, bkg_tor=0.01):
+    def min_integral(self):
         # Define a constraint where 0 <= x[0] + x[1] <= 1
         # nlc = NonlinearConstraint(self.data_sub, 0, 50)
-        nlc = [{'type': 'ineq', 'fun': self.data_sub-bkg_tor} # 1 - x0^2 - x1 >= 0
+
+        nlc = [{'type': 'ineq', 'fun': self.data_sub2} # 1 - x0^2 - x1 >= 0
               ]
         
         a0 = self.guess_01()

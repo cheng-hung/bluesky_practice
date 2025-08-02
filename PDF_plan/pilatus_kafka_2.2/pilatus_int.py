@@ -5,7 +5,7 @@ import numpy.ma as ma
 import pandas as pd
 
 import importlib
-Pilatus_sum = importlib.import_module("pilatus_sum_v2.2").Pilatus_sum
+Pilatus_sum = importlib.import_module("pilatus_sum").Pilatus_sum
 
 
 def iq_saver(fn, df, md, header=['q_A^-1', 'I(q)']):
@@ -158,7 +158,7 @@ class Pilatus_Int(Pilatus_sum):
         iq_df = pd.DataFrame()
         iq_df['q'] = q1d
         iq_df['I'] = i1d
-        iq_fn = os.path.join(process_dir, f'{self.file_name_prefix}_sum.iq')
+        
         md = ai.getPyFAI()
         _md = {'detector': self.run.start['detectors'][0], 
                'uid':self.full_uid, 
@@ -170,6 +170,15 @@ class Pilatus_Int(Pilatus_sum):
                }
         md.update(_md)
 
+        if self.run.start['detectors'][0] == 'pilatus1':
+            iq_fn = os.path.join(process_dir, f'{self.file_name_prefix}_sum.iq')
+
+        elif self.run.start['detectors'][0] == 'pe1c':
+            iq_fn = os.path.join(process_dir, f'{self.file_name_prefix}_flat.iq')
+
+        else:
+            iq_fn = os.path.join(process_dir, f'{self.file_name_prefix}_process.iq')
+        
         ## num_row will be the number of rows of the header in saved iq data file
         self.num_rows_header = iq_saver(iq_fn, iq_df, md)
         print(f'\n*** {os.path.basename(iq_fn)} saved!! ***\n')

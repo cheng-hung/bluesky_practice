@@ -32,12 +32,13 @@ class Pilatus_config(ConfigParser):
 
 class Pilatus_sum(Pilatus_config):
 
-    def __init__(self, uid, tiled_client, config_fn, **kwargs):
+    def __init__(self, uid, tiled_client, sandbox_tiled, config_fn, **kwargs):
         self.uid = uid
         super().__init__(config_fn, **kwargs)
         self.read(**kwargs)
 
         self.tiled_client = tiled_client
+        self.sandbox_tiled = sandbox_tiled
         self.run = tiled_client[uid]
         
         self.raw_db = self.get('topics', 'raw_db', fallback='pdf')
@@ -46,7 +47,8 @@ class Pilatus_sum(Pilatus_config):
         self.full_uid = self.run.start['uid']
 
         self.sample_name = self.run.start['sample_name']  ## update at start doc
-        self.stream_name = []  ## update at stop doc 
+        self.dksub_uid = None   ## update at event doc
+        self.stream_name = []  ## update at stop doc
 
     @property
     def stream_length(self):
@@ -216,7 +218,7 @@ class Pilatus_sum(Pilatus_config):
 
     def save_image_sum_T(self):
 
-        data_dir = os.path.join(self.tiff_base, self.sample_name, "dark_sub")
+        data_dir = os.path.join(self.tiff_base, self.sample_name)
 
         process_dir = os.path.join(data_dir, 'sum')
         os.makedirs(process_dir, exist_ok=True)  # Create 'sum' directory if it doesn't exis
@@ -233,14 +235,17 @@ class Pilatus_sum(Pilatus_config):
 
     def flat_filed_pe1c(self):
         # run = tiled_client[uid]
-        full_imsum = getattr(self.run, self.stream_name[0]).read()['pe1c_image'].to_numpy()[0][0]
+        
+        # full_imsum = getattr(self.run, self.stream_name[0]).read()['pe1c_image'].to_numpy()[0][0]
+        full_imsum = self.sandbox_tiled[self.dksub_uid].read()
         
         if self.use_flat_field_pe1c:
             flat_field = tifffile.imread(self.flat_field_pe1c)
             full_imsum = full_imsum / flat_field
 
-        data_dir = os.path.join(self.tiff_base, self.sample_name, "dark_sub")
+        data_dir = os.path.join(self.tiff_base, self.sample_name)
         process_dir = os.path.join(data_dir, 'flat_field')
+        os.makedirs(process_dir, exist_ok=True)  # Create 'flat_field' directory if it doesn't exis
 
         # Save output file to the new 'sum' directory
         tiff_fn = os.path.join(process_dir, f'{self.file_name_prefix}_flat.tiff')
